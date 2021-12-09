@@ -6,8 +6,6 @@ library(corrplot)
 library(vtreat)
 library(CatEncoders)
 library(caTools)
-library(ggplotly)
-#install.packages("ggplotly")
 #install.packages("CatEncoders")
 #install.packages("caTools")
 #install.packages("vtreat")
@@ -49,6 +47,19 @@ prop <- vroom::vroom("data/raw/Properati/ar_properties_filtrado.csv") %>%
     st_transform(proj) %>% 
     st_intersection(manzanas) %>% 
     mutate(price_m2=price/surface_total)
+
+# Eliminamos outliers
+
+boxplot(prop$price) # muchos valores extremos superiores
+
+Q1 <- quantile(prop$price, 0.25)
+Q3 <- quantile(prop$price, 0.75)
+IQR <- Q1-Q3
+
+prop <- prop %>% 
+    dplyr::filter(price < (Q1-1.5*IQR),
+                  price > (Q3+1.5*IQR))
+
 
 # Precio promedio por barrio
 prop_precio_barrio <- prop %>% 
@@ -124,7 +135,7 @@ plot(model)
 test$predicted.price <- predict(model,test)
 
 test %>% 
-    ggplot(aes(price,predicted.price)) +
+    ggplot(aes(price, predicted.price)) +
     geom_point(alpha=0.5) + 
     stat_smooth(aes(color='black')) +
     xlab('Precio') +
