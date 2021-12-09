@@ -2,6 +2,18 @@ library(tidyverse)
 library(sf)
 library(ggplot2)
 library(lubridate)
+library(corrplot)
+library(vtreat)
+library(CatEncoders)
+library(caTools)
+library(ggplotly)
+#install.packages("ggplotly")
+#install.packages("CatEncoders")
+#install.packages("caTools")
+#install.packages("vtreat")
+#install.packages('Amelia')
+#install.packages('corrplot')
+
 options(scipen=999)
 
 proj <- "+proj=laea +lat_0=-40 +lon_0=-60 +x_0=0 +y_0=0 +ellps=WGS84 +units=m +no_defs"
@@ -73,3 +85,52 @@ manzana_con_mas_ventas <- prop %>% dplyr:: filter(SM=="098-005M")
 ggplot(manzana_con_mas_ventas) + 
     geom_bar(aes(x = fecha), fill="orange", alpha=.5, color="black")
 
+
+#MISSING
+#Amelia:: missmap(prop,col=c('yellow','black'),y.at=1,y.labels='',legend=TRUE)
+
+# REGRESION
+
+#lapply(prop2,class)
+#str(prop2)
+
+prop2 <- prop %>% 
+    as.data.frame() %>% 
+    select(id, rooms, bedrooms, bathrooms, surface_total, price)
+
+# si le doy unlist a prop2, esto funciona
+lab_enc = LabelEncoder.fit(prop2)
+
+
+set.seed(123)
+
+#Split the data , `split()` assigns a booleans to a new column based on the SplitRatio specified. 
+split <- sample.split(prop2, SplitRatio =0.75)
+
+train <- subset(prop2,split==TRUE)
+test <- subset(prop2,split==FALSE)
+
+model <- lm(price ~ rooms + bedrooms + bathrooms + surface_total , data = train)
+summary(model)
+
+
+res <- residuals(model)
+res <- as.data.frame(res) # Convert residuals to a DataFrame 
+ggplot(res,aes(res)) +  geom_histogram(fill='blue',alpha=0.5)
+
+plot(model)
+
+
+test$predicted.price <- predict(model,test)
+
+test %>% 
+    ggplot(aes(price,predicted.price)) +
+    geom_point(alpha=0.5) + 
+    stat_smooth(aes(color='black')) +
+    xlab('Precio') +
+    ylab('Valor predicho')+
+    theme_bw()
+
+
+error <- test$price-test$predicted.price
+rmse <- sqrt(mean(error)^2)
